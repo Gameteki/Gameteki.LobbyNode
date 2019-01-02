@@ -5,6 +5,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="CrimsonDev.Gameteki.Api" Version="1.0.0.10" />
     <PackageReference Include="CrimsonDev.Gameteki.Data" Version="1.0.0.21" />
     <PackageReference Include="CrimsonDev.Gameteki.StyleCop.Rules" Version="1.0.0.13" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="2.2.0" />
@@ -19,10 +20,6 @@
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="2.2.0" />
     <PackageReference Include="Quartz" Version="3.0.7" />
     <PackageReference Include="StackExchange.Redis" Version="2.0.519" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\Gameteki.Api\CrimsonDev.Gameteki.Api.csproj" />
   </ItemGroup>
 
 </Project>

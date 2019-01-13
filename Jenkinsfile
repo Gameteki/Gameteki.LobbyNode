@@ -8,7 +8,7 @@ node {
         withSonarQubeEnv('Local Sonar') {
             sh(script: "dotnet sonarscanner begin /k:Gameteki.LobbyNode /d:sonar.host.url=${SONAR_HOST_URL} /d:sonar.login=${SONAR_AUTH_TOKEN} /d:sonar.cs.opencover.reportsPaths=coverage.opencover.xml", returnStdout: true)
             sh(script: "dotnet build -c Release", returnStdout: true)
-            sh(script: "coverlet CrimsonDev.Gameteki.LobbyNode.Tests/bin/Release/netcoreapp2.2/CrimsonDev.Gameteki.LobbyNode.Tests.dll --target 'dotnet' --targetargs 'test CrimsonDev.Gameteki.LobbyNode.Tests/CrimsonDev.Gameteki.LobbyNode.Tests.csproj --no-build' --format opencover", returnStdout: true)
+            sh(script: "coverlet CrimsonDev.Gameteki.LobbyNode.Tests/bin/Release/netcoreapp2.2/CrimsonDev.Gameteki.LobbyNode.Tests.dll --target 'dotnet' --targetargs 'test CrimsonDev.Gameteki.LobbyNode.Tests/CrimsonDev.Gameteki.LobbyNode.Tests.csproj --no-build -c Release' --format opencover", returnStdout: true)
             sh(script: "dotnet sonarscanner end /d:sonar.login=${SONAR_AUTH_TOKEN}", returnStdout: true)
         }
     }

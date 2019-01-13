@@ -12,9 +12,24 @@
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
   </PropertyGroup>
 
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <WarningsAsErrors />
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <WarningsAsErrors />
+  </PropertyGroup>
+
   <ItemGroup>
-    <PackageReference Include="CrimsonDev.Gameteki.Api" Version="1.0.0.10" />
-    <PackageReference Include="CrimsonDev.Gameteki.Data" Version="1.0.0.21" />
+    <Compile Remove="Gameteki.LobbyNode.Tests\**" />
+    <EmbeddedResource Remove="Gameteki.LobbyNode.Tests\**" />
+    <None Remove="Gameteki.LobbyNode.Tests\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CrimsonDev.Gameteki.Data" Version="1.0.0.22" />
     <PackageReference Include="CrimsonDev.Gameteki.StyleCop.Rules" Version="1.0.0.13" />
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="2.2.0" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc" Version="2.2.0" />

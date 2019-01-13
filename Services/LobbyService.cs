@@ -1,12 +1,12 @@
 ﻿namespace Gameteki.LobbyNode.Services
 {
+    using System;
     using System.Collections.Generic;
+    using System.Linq;
     using System.Threading.Tasks;
-    using CrimsonDev.Gameteki.Api.Models.Api;
     using CrimsonDev.Gameteki.Data.Constants;
     using Gameteki.LobbyNode.Config;
-    using Gameteki.LobbyNode.Hubs;
-    using Microsoft.AspNetCore.SignalR;
+    using Gameteki.LobbyNode.Models;
     using Microsoft.Extensions.Logging;
     using Microsoft.Extensions.Options;
     using Newtonsoft.Json;
@@ -16,72 +16,248 @@
     {
         private readonly GametekiLobbyOptions options;
         private readonly ISubscriber subscriber;
-        private readonly IDatabase database;
-        private readonly List<string> users;
 
-        private readonly IHubContext<LobbyHub> hubContext;
-        private ILogger<LobbyHub> logger;
-
-        public LobbyService(IConnectionMultiplexer redisConnection, IOptions<GametekiLobbyOptions> options, IHubContext<LobbyHub> hubContext, ILogger<LobbyHub> logger)
+        public LobbyService(IConnectionMultiplexer redisConnection, IOptions<GametekiLobbyOptions> options, ILogger<LobbyService> logger)
         {
-            this.hubContext = hubContext;
-            this.logger = logger;
             this.options = options.Value;
+            Logger = logger;
             subscriber = redisConnection.GetSubscriber();
-            database = redisConnection.GetDatabase();
 
-            users = new List<string>(database.SetMembers(RedisKeys.Users).ToStringArray());
+            UsersByConnectionId = new Dictionary<string, LobbyUser>();
+            GamesById = new Dictionary<Guid, LobbyGame>();
         }
+
+        protected Dictionary<string, LobbyUser> UsersByConnectionId { get; }
+        protected Dictionary<Guid, LobbyGame> GamesById { get; }
+        protected ILogger<LobbyService> Logger { get; }
 
         public void Init()
         {
             subscriber.Subscribe(RedisChannels.NewUser, OnNewUserMessage);
             subscriber.Subscribe(RedisChannels.UserDisconnect, OnUserDisconnectMessage);
-            subscriber.Subscribe(RedisChannels.LobbyMessage, OnLobbyMessage);
-            subscriber.Subscribe(RedisChannels.LobbyMessageRemoved, OnLobbyMessageRemoved);
 
             subscriber.Publish(RedisChannels.LobbyHello, options.NodeName);
         }
 
-        public async Task NewUserAsync(string username)
+        public Task NewUserAsync(LobbyUser user)
         {
-            await subscriber.PublishAsync(RedisChannels.NewUser, username);
+            if (user == null)
+            {
+                throw new ArgumentNullException(nameof(user));
+            }
 
-            database.SetAdd(RedisKeys.Users, username);
+            return NewUserInternalAsync(user);
         }
 
-        public async Task DisconnectedUserAsync(string username)
+        public Task<LobbyGame> DisconnectedUserAsync(string connectionId)
         {
-            await subscriber.PublishAsync(RedisChannels.UserDisconnect, username);
+            if (connectionId == null)
+            {
+                throw new ArgumentNullException(nameof(connectionId));
+            }
 
-            database.SetRemove(RedisKeys.Users, username);
+            return DisconnectedUserInternalAsync(connectionId);
         }
 
-        public List<string> GetUsers()
+        public List<LobbyUser> GetOnlineUsersForLobbyUser(LobbyUser user = null)
         {
-            return users;
+            if (user == null)
+            {
+                return UsersByConnectionId.Values.ToList();
+            }
+
+            return UsersByConnectionId.Values.Where(u => !user.BlockList.Contains(u.Name) && !u.BlockList.Contains(user.Name)).ToList();
         }
 
-        private void OnLobbyMessageRemoved(RedisChannel channel, RedisValue messageId)
+        public Task<GameResponse> StartNewGameAsync(string connectionId, StartNewGameRequest request)
         {
-            hubContext.Clients.All.SendAsync("removemessage", (int)messageId);
+            if (connectionId == null)
+            {
+                throw new ArgumentNullException(nameof(connectionId));
+            }
+
+            if (request == null)
+            {
+                throw new ArgumentNullException(nameof(request));
+            }
+
+            return StartNewGameInternalAsync(connectionId, request);
         }
 
-        private void OnLobbyMessage(RedisChannel channel, RedisValue messageString)
+        public List<LobbyGameListSummary> GetGameListForLobbyUser(LobbyUser lobbyUser)
         {
-            var message = JsonConvert.DeserializeObject<ApiLobbyMessage>(messageString);
+            if (lobbyUser == null)
+            {
+                return GamesById.Values.Select(g => g.ToGameListSummary()).ToList();
+            }
 
-            hubContext.Clients.All.SendAsync("lobbychat", message).GetAwaiter().GetResult();
+            return GamesById.Values
+                .Where(g => !g.Players.Any(player => player.Value.User.HasUserBlocked(lobbyUser) && !lobbyUser.HasUserBlocked(player.Value.User)))
+                .Select(g => g.ToGameListSummary()).ToList();
+        }
+
+        public LobbyGame FindGameForUser(string username)
+        {
+            return GamesById.Values.SingleOrDefault(g => g.HasPlayer(username));
+        }
+
+        public async Task<LobbyGame> LeaveGameAsync(string connectionId)
+        {
+            if (!UsersByConnectionId.ContainsKey(connectionId))
+            {
+                Logger.LogError($"Got leave game message for unknown connection id '{connectionId}'");
+                return null;
+            }
+
+            var user = UsersByConnectionId[connectionId];
+            var game = FindGameForUser(user.Name);
+            if (game == null || game.Started)
+            {
+                return null;
+            }
+
+            game.PlayerLeave(user.Name);
+
+            if (!game.IsEmpty())
+            {
+                await subscriber.PublishAsync(RedisChannels.UpdateGame, JsonConvert.SerializeObject(game));
+                return game;
+            }
+
+            GamesById.Remove(game.Id);
+
+            await subscriber.PublishAsync(RedisChannels.RemoveGame, game.Id.ToString());
+
+            return game;
+        }
+
+        public async Task<GameResponse> JoinGameAsync(string connectionId, Guid gameId, string password)
+        {
+            if (!UsersByConnectionId.ContainsKey(connectionId))
+            {
+                Logger.LogError($"Got join game message for unknown connection id '{connectionId}'");
+                return GameResponse.Failure("Connection not found");
+            }
+
+            var user = UsersByConnectionId[connectionId];
+            if (!GamesById.ContainsKey(gameId))
+            {
+                Logger.LogError($"Got join game message for unknown game id '{gameId}'");
+                return GameResponse.Failure("Game not found");
+            }
+
+            var game = GamesById[gameId];
+
+            var joinResponse = game.Join(user, password);
+            if (!joinResponse.Success)
+            {
+                return joinResponse;
+            }
+
+            await subscriber.PublishAsync(RedisChannels.UpdateGame, JsonConvert.SerializeObject(game));
+
+            return joinResponse;
+        }
+
+        private async Task<GameResponse> StartNewGameInternalAsync(string connectionId, StartNewGameRequest request)
+        {
+            if (!UsersByConnectionId.ContainsKey(connectionId))
+            {
+                Logger.LogError($"Got new game message for unknown connection id '{connectionId}'");
+                return GameResponse.Failure("Connection not found");
+            }
+
+            var user = UsersByConnectionId[connectionId];
+
+            var existingGame = FindGameForUser(user.Name);
+            if (existingGame != null)
+            {
+                Logger.LogError($"Got new game message for user already in game '{user.Name}' '{existingGame.Name}'");
+                return GameResponse.Failure("You are already in a game so cannot start a new one");
+            }
+
+            if (request.QuickJoin)
+            {
+                var pendingGame = GamesById.Values.OrderBy(g => g.Started).FirstOrDefault(game => game.CanQuickJoin(game.GameType));
+                if (pendingGame != null)
+                {
+                }
+
+                return GameResponse.Succeeded(pendingGame);
+            }
+
+            var newGame = new LobbyGame(user.Name, request);
+
+            newGame.NewGame(user);
+            GamesById.Add(newGame.Id, newGame);
+
+            await subscriber.PublishAsync(RedisChannels.NewGame, JsonConvert.SerializeObject(newGame));
+
+            return GameResponse.Succeeded(newGame);
+        }
+
+        private async Task NewUserInternalAsync(LobbyUser user)
+        {
+            if (UsersByConnectionId.ContainsKey(user.ConnectionId))
+            {
+                Logger.LogError($"Got new user request for '{user.Name}' but already know this user");
+
+                return;
+            }
+
+            user.Node = options.NodeName;
+
+            UsersByConnectionId.Add(user.ConnectionId, user);
+
+            await subscriber.PublishAsync(RedisChannels.NewUser, JsonConvert.SerializeObject(user));
+        }
+
+        private async Task<LobbyGame> DisconnectedUserInternalAsync(string connectionId)
+        {
+            if (!UsersByConnectionId.ContainsKey(connectionId))
+            {
+                Logger.LogError($"Got user disconnect for unknown connection Id '{connectionId}'");
+                return null;
+            }
+
+            var user = UsersByConnectionId[connectionId];
+
+            await subscriber.PublishAsync(RedisChannels.UserDisconnect, JsonConvert.SerializeObject(user));
+
+            var game = FindGameForUser(user.Name);
+            if (game == null || game.Started)
+            {
+                return null;
+            }
+
+            game.PlayerDisconnected(user.Name);
+
+            if (!game.IsEmpty())
+            {
+                return game;
+            }
+
+            GamesById.Remove(game.Id);
+            await subscriber.PublishAsync(RedisChannels.RemoveGame, game.Id.ToString());
+
+            return game;
         }
 
         private void OnUserDisconnectMessage(RedisChannel channel, RedisValue user)
         {
-            users.Remove(user);
+            UsersByConnectionId.Remove(user);
         }
 
-        private void OnNewUserMessage(RedisChannel channel, RedisValue user)
+        private void OnNewUserMessage(RedisChannel channel, RedisValue value)
         {
-            users.Add(user);
+            var lobbyUser = JsonConvert.DeserializeObject<LobbyUser>(value);
+
+            if (lobbyUser.Node == options.NodeName)
+            {
+                return;
+            }
+
+            UsersByConnectionId.Add(lobbyUser.ConnectionId, lobbyUser);
         }
     }
 }

@@ -6,5 +6,6 @@
         public string RedisUrl { get; set; }
         public string RedisName { get; set; }
         public string NodeName { get; set; }
+        public string ApiUrl { get; set; }
     }
 }

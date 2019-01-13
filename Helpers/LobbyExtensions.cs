@@ -102,8 +102,7 @@
                         {
                             var accessToken = context.Request.Query["access_token"];
 
-                            if (!string.IsNullOrEmpty(accessToken) &&
-                                (context.HttpContext.WebSockets.IsWebSocketRequest || context.Request.Headers["Accept"] == "text/event-stream"))
+                            if (!string.IsNullOrEmpty(accessToken))
                             {
                                 context.Token = context.Request.Query["access_token"];
                             }
@@ -125,11 +124,6 @@
             app.UseAuthentication();
             app.UseMvc();
 
-            app.UseSignalR(routes =>
-            {
-                routes.MapHub<LobbyHub>(PathString.Empty);
-            });
-
             ISchedulerFactory schedulerFactory = new StdSchedulerFactory();
             var scheduler = schedulerFactory.GetScheduler().GetAwaiter().GetResult();
 
@@ -143,7 +137,6 @@
                 .Build();
 
             scheduler.ScheduleJob(job, trigger);
-
             scheduler.Start().GetAwaiter().GetResult();
 
             var lobbyService = app.ApplicationServices.GetService<ILobbyService>();

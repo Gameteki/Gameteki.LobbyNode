@@ -1,6 +1,6 @@
 ﻿namespace Gameteki.LobbyNode
 {
-    public class LobbyMessages
+    public static class LobbyMessages
     {
         public const string UserList = "users";
         public const string LobbyChat = "lobbychat";

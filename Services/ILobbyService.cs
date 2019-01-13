@@ -9,7 +9,7 @@
     {
         void Init();
         Task NewUserAsync(LobbyUser user);
-        Task<LobbyGame> DisconnectedUserAsync(string username);
+        Task<LobbyGame> DisconnectedUserAsync(string connectionId);
         List<LobbyUser> GetOnlineUsersForLobbyUser(LobbyUser user = null);
         Task<GameResponse> StartNewGameAsync(string connectionId, StartNewGameRequest request);
         List<LobbyGameListSummary> GetGameListForLobbyUser(LobbyUser lobbyUser);

@@ -24,6 +24,7 @@
 
         public async Task Execute(IJobExecutionContext context)
         {
+            logger.LogDebug("Sending heartbeat for node", options.NodeName);
             await subscriber.PublishAsync(RedisChannels.LobbyHeartbeat, options.NodeName);
         }
     }

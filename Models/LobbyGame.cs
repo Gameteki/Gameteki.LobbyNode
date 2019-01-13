@@ -37,7 +37,11 @@
 
         public bool HasPassword => !string.IsNullOrEmpty(Password);
         public Dictionary<string, LobbyPlayer> Players => playersAndSpectators.Where(kvp => !kvp.Value.IsSpectator).ToDictionary(key => key.Key, value => value.Value);
-        public List<LobbyPlayer> Spectators => playersAndSpectators.Values.Where(p => p.IsSpectator).ToList();
+
+        public List<LobbyPlayer> GetSpectators()
+        {
+            return playersAndSpectators.Values.Where(p => p.IsSpectator).ToList();
+        }
 
         public bool CanQuickJoin(string gameType)
         {
@@ -80,7 +84,7 @@
 
             PopulateGameSummaryBase(summary);
 
-            summary.Spectators = new List<string>(Spectators.Select(p => p.User.Name));
+            summary.Spectators = new List<string>(GetSpectators().Select(p => p.User.Name));
             summary.Players = Players.ToDictionary(k => k.Key, v => new LobbyPlayerSummary { Name = v.Value.User.Name, CustomData = v.Value.CustomData });
             summary.Messages = Messages;
             summary.Owner = Owner;

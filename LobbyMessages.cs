@@ -1,4 +1,4 @@
-﻿namespace Gameteki.LobbyNode
+﻿namespace CrimsonDev.Gameteki.LobbyNode
 {
     public static class LobbyMessages
     {

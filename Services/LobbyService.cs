@@ -1,12 +1,12 @@
-﻿namespace Gameteki.LobbyNode.Services
+﻿namespace CrimsonDev.Gameteki.LobbyNode.Services
 {
     using System;
     using System.Collections.Generic;
     using System.Linq;
     using System.Threading.Tasks;
     using CrimsonDev.Gameteki.Data.Constants;
-    using Gameteki.LobbyNode.Config;
-    using Gameteki.LobbyNode.Models;
+    using CrimsonDev.Gameteki.LobbyNode.Config;
+    using CrimsonDev.Gameteki.LobbyNode.Models;
     using Microsoft.Extensions.Logging;
     using Microsoft.Extensions.Options;
     using Newtonsoft.Json;

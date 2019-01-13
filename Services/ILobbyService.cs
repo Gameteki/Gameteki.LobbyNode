@@ -1,9 +1,9 @@
-﻿namespace Gameteki.LobbyNode.Services
+﻿namespace CrimsonDev.Gameteki.LobbyNode.Services
 {
     using System;
     using System.Collections.Generic;
     using System.Threading.Tasks;
-    using Gameteki.LobbyNode.Models;
+    using CrimsonDev.Gameteki.LobbyNode.Models;
 
     public interface ILobbyService
     {

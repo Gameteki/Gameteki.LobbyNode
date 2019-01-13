@@ -1,4 +1,4 @@
-﻿namespace Gameteki.LobbyNode.Models
+﻿namespace CrimsonDev.Gameteki.LobbyNode.Models
 {
     public class StartNewGameRequest
     {

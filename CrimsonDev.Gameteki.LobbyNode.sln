@@ -3,9 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
 VisualStudioVersion = 15.0.28307.168
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Gameteki.LobbyNode", "Gameteki.LobbyNode.csproj", "{CA6478EE-307D-474D-83A5-EC047BC21B19}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CrimsonDev.Gameteki.LobbyNode", "CrimsonDev.Gameteki.LobbyNode.csproj", "{CA6478EE-307D-474D-83A5-EC047BC21B19}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Gameteki.LobbyNode.Tests", "Gameteki.LobbyNode.Tests\Gameteki.LobbyNode.Tests.csproj", "{5A04419D-B6BE-4054-BEF6-C2589746FA4C}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CrimsonDev.Gameteki.LobbyNode.Tests", "CrimsonDev.Gameteki.LobbyNode.Tests\CrimsonDev.Gameteki.LobbyNode.Tests.csproj", "{5A04419D-B6BE-4054-BEF6-C2589746FA4C}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

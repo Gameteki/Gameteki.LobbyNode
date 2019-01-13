@@ -1,12 +1,12 @@
-﻿namespace Gameteki.LobbyNode.Hubs
+﻿namespace CrimsonDev.Gameteki.LobbyNode.Hubs
 {
     using System;
     using System.Collections.Generic;
     using System.Linq;
     using System.Threading.Tasks;
     using CrimsonDev.Gameteki.Data.Constants;
-    using Gameteki.LobbyNode.Models;
-    using Gameteki.LobbyNode.Services;
+    using CrimsonDev.Gameteki.LobbyNode.Models;
+    using CrimsonDev.Gameteki.LobbyNode.Services;
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.SignalR;
     using Newtonsoft.Json;

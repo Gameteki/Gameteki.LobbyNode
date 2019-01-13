@@ -1,16 +1,14 @@
-﻿namespace Gameteki.LobbyNode.Tests
+﻿namespace CrimsonDev.Gameteki.LobbyNode.Tests
 {
     using System;
     using System.Collections.Generic;
     using System.Diagnostics.CodeAnalysis;
     using System.Linq;
-    using System.Threading;
     using System.Threading.Tasks;
     using CrimsonDev.Gameteki.Data.Constants;
-    using Gameteki.LobbyNode.Config;
-    using Gameteki.LobbyNode.Models;
-    using Gameteki.LobbyNode.Services;
-    using Microsoft.AspNetCore.SignalR;
+    using CrimsonDev.Gameteki.LobbyNode.Config;
+    using CrimsonDev.Gameteki.LobbyNode.Models;
+    using CrimsonDev.Gameteki.LobbyNode.Services;
     using Microsoft.Extensions.Logging;
     using Microsoft.Extensions.Options;
     using Microsoft.VisualStudio.TestTools.UnitTesting;

@@ -1,8 +1,8 @@
-﻿namespace Gameteki.LobbyNode.Scheduler
+﻿namespace CrimsonDev.Gameteki.LobbyNode.Scheduler
 {
     using System.Threading.Tasks;
     using CrimsonDev.Gameteki.Data.Constants;
-    using Gameteki.LobbyNode.Config;
+    using CrimsonDev.Gameteki.LobbyNode.Config;
     using Microsoft.Extensions.Logging;
     using Microsoft.Extensions.Options;
     using Quartz;

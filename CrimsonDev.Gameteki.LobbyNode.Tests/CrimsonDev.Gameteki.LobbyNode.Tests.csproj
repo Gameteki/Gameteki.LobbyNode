@@ -4,6 +4,10 @@
     <TargetFramework>netcoreapp2.2</TargetFramework>
 
     <IsPackable>false</IsPackable>
+
+    <AssemblyName>CrimsonDev.Gameteki.LobbyNode.Tests</AssemblyName>
+
+    <RootNamespace>CrimsonDev.Gameteki.LobbyNode.Tests</RootNamespace>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
@@ -27,7 +31,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Gameteki.LobbyNode.csproj" />
+    <ProjectReference Include="..\CrimsonDev.Gameteki.LobbyNode.csproj" />
   </ItemGroup>
 
 </Project>

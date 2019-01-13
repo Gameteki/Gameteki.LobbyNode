@@ -1,8 +1,8 @@
-﻿namespace Gameteki.LobbyNode.Tests
+﻿namespace CrimsonDev.Gameteki.LobbyNode.Tests
 {
     using System;
     using Bogus;
-    using Gameteki.LobbyNode.Models;
+    using CrimsonDev.Gameteki.LobbyNode.Models;
 
     public static class TestUtils
     {

@@ -1,4 +1,4 @@
-﻿namespace Gameteki.LobbyNode.Scheduler
+﻿namespace CrimsonDev.Gameteki.LobbyNode.Scheduler
 {
     using System;
     using Quartz;

@@ -1,8 +1,8 @@
-﻿namespace Gameteki.LobbyNode.Hubs
+﻿namespace CrimsonDev.Gameteki.LobbyNode.Hubs
 {
     using System;
     using System.Threading.Tasks;
-    using Gameteki.LobbyNode.Models;
+    using CrimsonDev.Gameteki.LobbyNode.Models;
 
     public interface ILobbyHub
     {

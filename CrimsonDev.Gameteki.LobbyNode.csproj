@@ -10,6 +10,7 @@
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <RepositoryUrl>https://github.com/Gameteki/Gameteki.LobbyNode</RepositoryUrl>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <AssemblyName>CrimsonDev.Gameteki.LobbyNode</AssemblyName>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
@@ -23,9 +24,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Remove="Gameteki.LobbyNode.Tests\**" />
-    <EmbeddedResource Remove="Gameteki.LobbyNode.Tests\**" />
-    <None Remove="Gameteki.LobbyNode.Tests\**" />
+    <Compile Remove="CrimsonDev.Gameteki.LobbyNode.Tests\**" />
+    <EmbeddedResource Remove="CrimsonDev.Gameteki.LobbyNode.Tests\**" />
+    <None Remove="CrimsonDev.Gameteki.LobbyNode.Tests\**" />
   </ItemGroup>
 
   <ItemGroup>

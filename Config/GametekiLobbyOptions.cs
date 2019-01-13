@@ -1,4 +1,4 @@
-﻿namespace Gameteki.LobbyNode.Config
+﻿namespace CrimsonDev.Gameteki.LobbyNode.Config
 {
     public class GametekiLobbyOptions
     {

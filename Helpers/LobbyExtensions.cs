@@ -1,4 +1,4 @@
-﻿namespace Gameteki.LobbyNode.Helpers
+﻿namespace CrimsonDev.Gameteki.LobbyNode.Helpers
 {
     using System;
     using System.Diagnostics.CodeAnalysis;
@@ -7,13 +7,11 @@
     using System.Threading.Tasks;
     using CrimsonDev.Gameteki.Data;
     using CrimsonDev.Gameteki.Data.Models;
-    using Gameteki.LobbyNode.Config;
-    using Gameteki.LobbyNode.Hubs;
-    using Gameteki.LobbyNode.Scheduler;
-    using Gameteki.LobbyNode.Services;
+    using CrimsonDev.Gameteki.LobbyNode.Config;
+    using CrimsonDev.Gameteki.LobbyNode.Scheduler;
+    using CrimsonDev.Gameteki.LobbyNode.Services;
     using Microsoft.AspNetCore.Authentication.JwtBearer;
     using Microsoft.AspNetCore.Builder;
-    using Microsoft.AspNetCore.Http;
     using Microsoft.AspNetCore.Identity;
     using Microsoft.AspNetCore.Mvc;
     using Microsoft.EntityFrameworkCore;

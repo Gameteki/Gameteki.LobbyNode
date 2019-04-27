@@ -13,6 +13,7 @@
         public string Name { get; set; }
         public string Node { get; set; }
         public List<string> BlockList { get; set; }
+        public string UserData { get; set; }
 
         public bool HasUserBlocked(LobbyUser otherUser)
         {

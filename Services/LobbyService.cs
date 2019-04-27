@@ -16,12 +16,15 @@
     {
         private readonly GametekiLobbyOptions options;
         private readonly ISubscriber subscriber;
+        private readonly IDatabase database;
 
         public LobbyService(IConnectionMultiplexer redisConnection, IOptions<GametekiLobbyOptions> options, ILogger<LobbyService> logger)
         {
             this.options = options.Value;
+
             Logger = logger;
             subscriber = redisConnection.GetSubscriber();
+            database = redisConnection.GetDatabase();
 
             UsersByConnectionId = new Dictionary<string, LobbyUser>();
             GamesById = new Dictionary<Guid, LobbyGame>();
@@ -37,6 +40,15 @@
             subscriber.Subscribe(RedisChannels.UserDisconnect, OnUserDisconnectMessage);
 
             subscriber.Publish(RedisChannels.LobbyHello, options.NodeName);
+
+            var gameIds = database.SetMembers("games");
+            foreach (var gameId in gameIds)
+            {
+                var gameString = database.StringGet($"game:{gameId}");
+                var game = JsonConvert.DeserializeObject<LobbyGame>(gameString);
+
+                GamesById.Add(game.Id, game);
+            }
         }
 
         public Task NewUserAsync(LobbyUser user)
@@ -92,7 +104,7 @@
             }
 
             return GamesById.Values
-                .Where(g => !g.Players.Any(player => player.Value.User.HasUserBlocked(lobbyUser) && !lobbyUser.HasUserBlocked(player.Value.User)))
+                .Where(g => !g.GetPlayers().Any(player => player.Value.User.HasUserBlocked(lobbyUser) && !lobbyUser.HasUserBlocked(player.Value.User)))
                 .Select(g => g.ToGameListSummary()).ToList();
         }
 
@@ -157,6 +169,43 @@
             await subscriber.PublishAsync(RedisChannels.UpdateGame, JsonConvert.SerializeObject(game));
 
             return joinResponse;
+        }
+
+        public async Task<GameResponse> StartGameAsync(string connectionId)
+        {
+            if (!UsersByConnectionId.ContainsKey(connectionId))
+            {
+                Logger.LogError($"Got start game message for unknown connection id '{connectionId}'");
+                return GameResponse.Failure("Connection not found");
+            }
+
+            var user = UsersByConnectionId[connectionId];
+            var game = FindGameForUser(user.Name);
+            if (game == null)
+            {
+                Logger.LogError($"No games found to start for {user.Name}");
+                return GameResponse.Failure("Game not found");
+            }
+
+            if (game.Owner != user.Name)
+            {
+                return GameResponse.Failure("You are not the game owner and cannot start the game.");
+            }
+
+            await Task.Delay(1);
+
+            return GameResponse.Succeeded(game);
+        }
+
+        public void RemoveGame(Guid gameId)
+        {
+            if (!GamesById.ContainsKey(gameId))
+            {
+                Logger.LogWarning($"Got close for game {gameId} that we didn't know about");
+                return;
+            }
+
+            GamesById.Remove(gameId);
         }
 
         private async Task<GameResponse> StartNewGameInternalAsync(string connectionId, StartNewGameRequest request)

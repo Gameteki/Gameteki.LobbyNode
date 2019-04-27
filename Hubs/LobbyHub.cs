@@ -2,28 +2,50 @@
 {
     using System;
     using System.Collections.Generic;
+    using System.IdentityModel.Tokens.Jwt;
     using System.Linq;
+    using System.Security.Claims;
+    using System.Text;
     using System.Threading.Tasks;
     using CrimsonDev.Gameteki.Data.Constants;
+    using CrimsonDev.Gameteki.LobbyNode.Config;
     using CrimsonDev.Gameteki.LobbyNode.Models;
     using CrimsonDev.Gameteki.LobbyNode.Services;
     using Microsoft.AspNetCore.Authorization;
     using Microsoft.AspNetCore.SignalR;
+    using Microsoft.Extensions.Options;
+    using Microsoft.IdentityModel.Tokens;
     using Newtonsoft.Json;
     using StackExchange.Redis;
 
     public class LobbyHub : Hub<ILobbyClient>, ILobbyHub
     {
+        private static bool setupDone;
         private readonly ILobbyService lobbyService;
+        private readonly IGameNodeService gameNodeService;
+        private readonly IDatabase database;
+        private readonly AuthTokenOptions tokenOptions;
 
-        public LobbyHub(ILobbyService lobbyService, IConnectionMultiplexer redisConnection)
+        public LobbyHub(ILobbyService lobbyService, IConnectionMultiplexer redisConnection, IGameNodeService gameNodeService, IOptions<AuthTokenOptions> tokenOptions)
         {
             this.lobbyService = lobbyService;
+            this.gameNodeService = gameNodeService;
+
+            this.tokenOptions = tokenOptions.Value;
 
             var subscriber = redisConnection.GetSubscriber();
+            database = redisConnection.GetDatabase();
 
-            subscriber.Subscribe(RedisChannels.LobbyMessage, OnLobbyMessage);
-            subscriber.Subscribe(RedisChannels.LobbyMessageRemoved, OnLobbyMessageRemoved);
+            if (setupDone)
+            {
+                return;
+            }
+
+            subscriber.Subscribe(RedisChannels.LobbyMessage).OnMessage(OnLobbyMessageAsync);
+            subscriber.Subscribe(RedisChannels.LobbyMessageRemoved).OnMessage(OnLobbyMessageRemovedAsync);
+            subscriber.Subscribe("RemoveRunningGame").OnMessage(OnRemoveGameAsync);
+
+            setupDone = true;
         }
 
         public override async Task OnDisconnectedAsync(Exception exception)
@@ -50,13 +72,16 @@
             if (Context.User.Identity.IsAuthenticated)
             {
                 var encodedBlockList = Context.User.FindFirst("BlockList");
-                var blockList = encodedBlockList != null && !string.IsNullOrEmpty(encodedBlockList.Value) ? JsonConvert.DeserializeObject<List<string>>(encodedBlockList.Value) : new List<string>();
+                var blockList = encodedBlockList != null &&
+                                !string.IsNullOrEmpty(encodedBlockList.Value) ? JsonConvert.DeserializeObject<List<string>>(encodedBlockList.Value) : new List<string>();
+                var userData = Context.User.FindFirst("UserData");
 
                 lobbyUser = new LobbyUser
                 {
                     ConnectionId = Context.ConnectionId,
                     Name = Context.User.Identity.Name,
-                    BlockList = blockList
+                    BlockList = blockList,
+                    UserData = userData.Value ?? string.Empty
                 };
 
                 await lobbyService.NewUserAsync(lobbyUser);
@@ -80,7 +105,7 @@
             }
 
             var blockedUsers = lobbyService.GetOnlineUsersForLobbyUser().Where(lobbyUser =>
-                result.Game.Players.Any(player => player.Value.User.HasUserBlocked(lobbyUser) || lobbyUser.HasUserBlocked(player.Value.User)));
+                result.Game.GetPlayers().Any(player => player.Value.User.HasUserBlocked(lobbyUser) || lobbyUser.HasUserBlocked(player.Value.User)));
 
             await Clients.AllExcept(blockedUsers.Select(u => u.ConnectionId).ToList()).NewGame(result.Game.ToGameListSummary());
             await Groups.AddToGroupAsync(Context.ConnectionId, result.Game.Id.ToString());
@@ -105,7 +130,7 @@
             }
 
             var blockedUsers = lobbyService.GetOnlineUsersForLobbyUser().Where(lobbyUser =>
-                game.Players.Any(player => player.Value.User.HasUserBlocked(lobbyUser) || lobbyUser.HasUserBlocked(player.Value.User)));
+                game.GetPlayers().Any(player => player.Value.User.HasUserBlocked(lobbyUser) || lobbyUser.HasUserBlocked(player.Value.User)));
 
             await Clients.AllExcept(blockedUsers.Select(u => u.ConnectionId).ToList()).UpdateGame(game.ToGameListSummary());
 
@@ -127,7 +152,7 @@
             }
 
             var blockedUsers = lobbyService.GetOnlineUsersForLobbyUser().Where(lobbyUser =>
-                result.Game.Players.Any(player => player.Value.User.HasUserBlocked(lobbyUser) || lobbyUser.HasUserBlocked(player.Value.User)));
+                result.Game.GetPlayers().Any(player => player.Value.User.HasUserBlocked(lobbyUser) || lobbyUser.HasUserBlocked(player.Value.User)));
 
             await Clients.AllExcept(blockedUsers.Select(u => u.ConnectionId).ToList()).UpdateGame(result.Game.ToGameListSummary());
             await Groups.AddToGroupAsync(Context.ConnectionId, result.Game.Id.ToString());
@@ -136,9 +161,55 @@
         }
 
         [HubMethodName(LobbyMessages.StartGame)]
-        public Task StartGameAsync()
+        [Authorize]
+        public async Task StartGameAsync()
         {
-            return Task.CompletedTask;
+            var result = await lobbyService.StartGameAsync(Context.ConnectionId);
+
+            if (!result.Success)
+            {
+                await Clients.Caller.JoinFailed(result.Message);
+
+                return;
+            }
+
+            var node = gameNodeService.GetNodeForGame();
+            if (node == null)
+            {
+                await Clients.Caller.JoinFailed("Could not find a game node for your game.  Try again later.");
+
+                return;
+            }
+
+            result.Game.Started = true;
+
+            node.NumGames++;
+
+            var blockedUsers = lobbyService.GetOnlineUsersForLobbyUser().Where(lobbyUser =>
+                result.Game.GetPlayers().Any(player => player.Value.User.HasUserBlocked(lobbyUser) || lobbyUser.HasUserBlocked(player.Value.User)));
+
+            await Clients.AllExcept(blockedUsers.Select(u => u.ConnectionId).ToList()).UpdateGame(result.Game.ToGameListSummary());
+
+            await database.StringSetAsync($"game:{result.Game.Id.ToString()}", JsonConvert.SerializeObject(result.Game));
+            await database.SetAddAsync("games", result.Game.Id.ToString());
+
+            await SendGameStateAsync(result.Game);
+
+            foreach (var playerOrSpectator in result.Game.GetPlayersAndSpectators())
+            {
+                var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(tokenOptions.Key));
+                var jwt = new JwtSecurityToken(
+                    tokenOptions.Issuer,
+                    audience: tokenOptions.Issuer,
+                    claims: new List<Claim> { new Claim(ClaimTypes.Name, playerOrSpectator.User.Name) },
+                    notBefore: DateTime.UtcNow,
+                    expires: DateTime.UtcNow.AddHours(2),
+                    signingCredentials: new SigningCredentials(key, SecurityAlgorithms.HmacSha256));
+
+                var token = new JwtSecurityTokenHandler().WriteToken(jwt);
+
+                await Clients.Client(playerOrSpectator.User.ConnectionId).HandOff(node.Address, node.Name, token, result.Game.Id);
+            }
         }
 
         protected async Task SendGameStateAsync(LobbyGame game)
@@ -148,16 +219,24 @@
             await Clients.Group(gameSummary.Id).GameState(gameSummary);
         }
 
-        private void OnLobbyMessageRemoved(RedisChannel channel, RedisValue messageId)
+        private async Task OnRemoveGameAsync(ChannelMessage message)
         {
-            Clients.All.RemoveLobbyMessage((int)messageId);
+            var gameId = Guid.Parse(message.Message);
+
+            lobbyService.RemoveGame(gameId);
+            await Clients.All.RemoveGame(gameId);
         }
 
-        private void OnLobbyMessage(RedisChannel channel, RedisValue messageString)
+        private async Task OnLobbyMessageRemovedAsync(ChannelMessage message)
         {
-            var message = JsonConvert.DeserializeObject<LobbyMessage>(messageString);
+            await Clients.All.RemoveLobbyMessage((int)message.Message);
+        }
 
-            Clients.All.LobbyChatMessage(message).GetAwaiter().GetResult();
+        private async Task OnLobbyMessageAsync(ChannelMessage channelMessage)
+        {
+            var message = JsonConvert.DeserializeObject<LobbyMessage>(channelMessage.Message);
+
+            await Clients.All.LobbyChatMessage(message);
         }
     }
 }

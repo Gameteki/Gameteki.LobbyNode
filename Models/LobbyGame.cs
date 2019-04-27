@@ -6,9 +6,14 @@
 
     public class LobbyGame
     {
-        private readonly Dictionary<string, LobbyPlayer> playersAndSpectators;
+        public LobbyGame()
+        {
+            PlayersAndSpectators = new Dictionary<string, LobbyPlayer>();
+            Messages = new List<string>();
+        }
 
         public LobbyGame(string owner, StartNewGameRequest request)
+            : this()
         {
             Id = Guid.NewGuid();
 
@@ -19,9 +24,6 @@
             SpectatorsCanWatch = request.Spectators;
             CreatedAt = DateTime.UtcNow;
             GameType = request.GameType;
-
-            playersAndSpectators = new Dictionary<string, LobbyPlayer>();
-            Messages = new List<string>();
         }
 
         public Guid Id { get; set; }
@@ -34,18 +36,23 @@
         public bool Started { get; set; }
         public DateTime CreatedAt { get; set; }
         public List<string> Messages { get; set; }
+        public Dictionary<string, LobbyPlayer> PlayersAndSpectators { get; }
 
         public bool HasPassword => !string.IsNullOrEmpty(Password);
-        public Dictionary<string, LobbyPlayer> Players => playersAndSpectators.Where(kvp => !kvp.Value.IsSpectator).ToDictionary(key => key.Key, value => value.Value);
+
+        public Dictionary<string, LobbyPlayer> GetPlayers()
+        {
+            return PlayersAndSpectators.Where(kvp => !kvp.Value.IsSpectator).ToDictionary(key => key.Key, value => value.Value);
+        }
 
         public List<LobbyPlayer> GetSpectators()
         {
-            return playersAndSpectators.Values.Where(p => p.IsSpectator).ToList();
+            return PlayersAndSpectators.Values.Where(p => p.IsSpectator).ToList();
         }
 
         public bool CanQuickJoin(string gameType)
         {
-            return GameType.Equals(gameType, StringComparison.OrdinalIgnoreCase) && !Started && !HasPassword && Players.Count < 2;
+            return GameType.Equals(gameType, StringComparison.OrdinalIgnoreCase) && !Started && !HasPassword && GetPlayers().Count < 2;
         }
 
         public void NewGame(LobbyUser user)
@@ -56,12 +63,12 @@
                 IsSpectator = false
             };
 
-            playersAndSpectators.Add(user.Name, player);
+            PlayersAndSpectators.Add(user.Name, player);
         }
 
         public bool HasPlayer(string username)
         {
-            return playersAndSpectators.ContainsKey(username);
+            return PlayersAndSpectators.ContainsKey(username);
         }
 
         public LobbyGameListSummary ToGameListSummary()
@@ -73,7 +80,7 @@
             summary.GameType = GameType;
             summary.NeedsPassword = HasPassword;
             summary.ShowHand = ShowHand;
-            summary.Players = new List<string>(Players.Values.Select(p => p.User.Name));
+            summary.Players = new List<string>(GetPlayers().Values.Select(p => p.User.Name));
 
             return summary;
         }
@@ -85,7 +92,7 @@
             PopulateGameSummaryBase(summary);
 
             summary.Spectators = new List<string>(GetSpectators().Select(p => p.User.Name));
-            summary.Players = Players.ToDictionary(k => k.Key, v => new LobbyPlayerSummary { Name = v.Value.User.Name, CustomData = v.Value.CustomData });
+            summary.Players = GetPlayers().ToDictionary(k => k.Key, v => new LobbyPlayerSummary { Name = v.Value.User.Name, CustomData = v.Value.CustomData });
             summary.Messages = Messages;
             summary.Owner = Owner;
 
@@ -106,7 +113,7 @@
 
             CheckAndResetOwner(username);
 
-            playersAndSpectators.Remove(username);
+            PlayersAndSpectators.Remove(username);
         }
 
         public void PlayerLeave(string username)
@@ -123,12 +130,12 @@
 
             CheckAndResetOwner(username);
 
-            playersAndSpectators.Remove(username);
+            PlayersAndSpectators.Remove(username);
         }
 
         public GameResponse Join(LobbyUser user, string password)
         {
-            if (playersAndSpectators.ContainsKey(user.Name))
+            if (PlayersAndSpectators.ContainsKey(user.Name))
             {
                 return GameResponse.Failure("You are already in that game.");
             }
@@ -138,7 +145,7 @@
                 return GameResponse.Failure("That game has already started.");
             }
 
-            if (Players.Count >= 2)
+            if (GetPlayers().Count >= 2)
             {
                 return GameResponse.Failure("That game is full.");
             }
@@ -148,20 +155,25 @@
                 return GameResponse.Failure("Incorrect password for that game.");
             }
 
-            if (Players.Values.Any(player => player.User.HasUserBlocked(user) || user.HasUserBlocked(player.User)))
+            if (GetPlayers().Values.Any(player => player.User.HasUserBlocked(user) || user.HasUserBlocked(player.User)))
             {
                 return GameResponse.Failure("You cannot join that game.");
             }
 
             // TODO Add message
-            playersAndSpectators.Add(user.Name, new LobbyPlayer { User = user, IsSpectator = false });
+            PlayersAndSpectators.Add(user.Name, new LobbyPlayer { User = user, IsSpectator = false });
 
             return GameResponse.Succeeded(this);
         }
 
         public bool IsEmpty()
         {
-            return playersAndSpectators.Values.All(p => p.IsSpectator);
+            return PlayersAndSpectators.Values.All(p => p.IsSpectator);
+        }
+
+        public List<LobbyPlayer> GetPlayersAndSpectators()
+        {
+            return PlayersAndSpectators.Values.ToList();
         }
 
         private void CheckAndResetOwner(string username)
@@ -171,7 +183,7 @@
                 return;
             }
 
-            var otherPlayer = playersAndSpectators.Values.FirstOrDefault(p => p.User.Name != username && !p.IsSpectator);
+            var otherPlayer = PlayersAndSpectators.Values.FirstOrDefault(p => p.User.Name != username && !p.IsSpectator);
             if (otherPlayer != null)
             {
                 Owner = otherPlayer.User.Name;

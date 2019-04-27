@@ -3,20 +3,23 @@
     using System.Threading.Tasks;
     using CrimsonDev.Gameteki.Data.Constants;
     using CrimsonDev.Gameteki.LobbyNode.Config;
+    using CrimsonDev.Gameteki.LobbyNode.Services;
     using Microsoft.Extensions.Logging;
     using Microsoft.Extensions.Options;
     using Quartz;
     using StackExchange.Redis;
 
-    public class NodeHeartbeat : IJob
+    public class NodeManager : IJob
     {
-        private readonly ILogger<NodeHeartbeat> logger;
+        private readonly ILogger<NodeManager> logger;
+        private readonly IGameNodeService gameNodeService;
         private readonly GametekiLobbyOptions options;
         private readonly ISubscriber subscriber;
 
-        public NodeHeartbeat(IConnectionMultiplexer redisConnection, ILogger<NodeHeartbeat> logger, IOptions<GametekiLobbyOptions> options)
+        public NodeManager(IConnectionMultiplexer redisConnection, ILogger<NodeManager> logger, IOptions<GametekiLobbyOptions> options, IGameNodeService gameNodeService)
         {
             this.logger = logger;
+            this.gameNodeService = gameNodeService;
             this.options = options.Value;
 
             subscriber = redisConnection.GetSubscriber();
@@ -26,6 +29,8 @@
         {
             logger.LogDebug("Sending heartbeat for node", options.NodeName);
             await subscriber.PublishAsync(RedisChannels.LobbyHeartbeat, options.NodeName);
+
+            gameNodeService.CheckForTimeouts();
         }
     }
 }

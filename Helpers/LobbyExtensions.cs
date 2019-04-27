@@ -113,8 +113,11 @@
             services.AddSingleton<IConnectionMultiplexer>(ConnectionMultiplexer.Connect(generalConfig.RedisUrl));
             services.AddSingleton<IJobFactory, JobFactory>();
             services.AddSingleton<ILobbyService, LobbyService>();
-            services.AddSingleton<NodeHeartbeat>();
+            services.AddSingleton<NodeManager>();
+            services.AddSingleton<IGameNodeService, GameNodeService>();
+
             services.Configure<GametekiLobbyOptions>(generalSection);
+            services.Configure<AuthTokenOptions>(configuration.GetSection("Tokens"));
         }
 
         public static IApplicationBuilder UseLobby(this IApplicationBuilder app)
@@ -127,7 +130,7 @@
 
             scheduler.JobFactory = app.ApplicationServices.GetService<IJobFactory>();
 
-            var job = JobBuilder.Create<NodeHeartbeat>().WithIdentity("NodeMonitor").Build();
+            var job = JobBuilder.Create<NodeManager>().WithIdentity("NodeMonitor").Build();
             var trigger = TriggerBuilder
                 .Create()
                 .WithIdentity("NodeMonitorTrigger")
@@ -137,8 +140,7 @@
             scheduler.ScheduleJob(job, trigger);
             scheduler.Start().GetAwaiter().GetResult();
 
-            var lobbyService = app.ApplicationServices.GetService<ILobbyService>();
-            lobbyService.Init();
+            app.ApplicationServices.GetService<IGameNodeService>();
 
             return app;
         }

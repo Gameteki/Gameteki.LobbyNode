@@ -4,6 +4,7 @@
     using System.Collections.Generic;
     using System.Threading.Tasks;
     using CrimsonDev.Gameteki.LobbyNode.Models;
+    using StackExchange.Redis;
 
     public interface ILobbyService
     {
@@ -16,5 +17,7 @@
         LobbyGame FindGameForUser(string username);
         Task<LobbyGame> LeaveGameAsync(string connectionId);
         Task<GameResponse> JoinGameAsync(string connectionId, Guid gameId, string password);
+        Task<GameResponse> StartGameAsync(string connectionId);
+        void RemoveGame(Guid gameId);
     }
 }

@@ -20,7 +20,7 @@
 
         public void ReturnJob(IJob job)
         {
-            throw new NotImplementedException();
+            // Not implemented
         }
     }
 }

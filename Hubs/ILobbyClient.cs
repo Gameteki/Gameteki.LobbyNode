@@ -16,5 +16,6 @@
         Task RemoveGame(Guid id);
         Task LobbyChatMessage(LobbyMessage message);
         Task RemoveLobbyMessage(int messageId);
+        Task HandOff(string address, string nodeName, string token, Guid gameId);
     }
 }

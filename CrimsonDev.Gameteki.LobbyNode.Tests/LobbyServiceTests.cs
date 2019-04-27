@@ -23,6 +23,7 @@
         private Mock<IConnectionMultiplexer> RedisConnectionMock { get; set; }
         private Mock<ILogger<LobbyService>> LoggerMock { get; set; }
         private Mock<ISubscriber> SubscriberMock { get; set; }
+        private Mock<IDatabase> DatabaseMock { get; set; }
 
         private IOptions<GametekiLobbyOptions> LobbyOptions { get; set; }
         private List<LobbyUser> TestUsers { get; set; }
@@ -35,11 +36,13 @@
             RedisConnectionMock = new Mock<IConnectionMultiplexer>();
             LoggerMock = new Mock<ILogger<LobbyService>>();
             SubscriberMock = new Mock<ISubscriber>();
+            DatabaseMock = new Mock<IDatabase>();
 
             LobbyOptions = new OptionsWrapper<GametekiLobbyOptions>(new GametekiLobbyOptions { NodeName = "TestNode" });
             TestUsers = new List<LobbyUser>();
 
             RedisConnectionMock.Setup(c => c.GetSubscriber(It.IsAny<object>())).Returns(SubscriberMock.Object);
+            RedisConnectionMock.Setup(c => c.GetDatabase(It.IsAny<int>(), It.IsAny<object>())).Returns(DatabaseMock.Object);
 
             Service = new LobbyService(RedisConnectionMock.Object, LobbyOptions, LoggerMock.Object);
 
